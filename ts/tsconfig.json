@@ -10,7 +10,8 @@
     "noImplicitAny": false,
     "strictNullChecks": false,
     "types": [
-      "@overwolf/types"
+      "@overwolf/types",
+      "dom-mediacapture-record"
     ],
     "rootDirs": [
       "./src"

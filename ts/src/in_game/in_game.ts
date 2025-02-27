@@ -19,8 +19,10 @@ class InGame extends AppWindow {
   private _gameEventsListener: OWGamesEvents;
   private _eventsLog: HTMLElement;
   private _infoLog: HTMLElement;
+  private mediaRecorder: MediaRecorder;
 
   private constructor() {
+    console.log('###### InGame constructor called ####');
     super(kWindowNames.inGame);
 
     this._eventsLog = document.getElementById('eventsLog');
@@ -28,6 +30,19 @@ class InGame extends AppWindow {
 
     this.setToggleHotkeyBehavior();
     this.setToggleHotkeyText();
+
+    this.setDebugHotkeyBehavior();
+    this.initializeDebugOverlay();
+    
+    // Add event listeners after the DOM is loaded
+    // document.addEventListener('DOMContentLoaded', () => {
+    //   this.initializeTranscriptionOverlay();
+    //   this.initializeRecording();
+    // });
+
+    // Directly call the initialization methods
+    this.initializeTranscriptionOverlay();
+    this.initializeRecording();
   }
 
   public static instance() {
@@ -85,10 +100,12 @@ class InGame extends AppWindow {
     const gameClassId = await this.getCurrentGameClassId();
     const hotkeyText = await OWHotkeys.getHotkeyText(kHotkeys.toggle, gameClassId);
     const hotkeyElem = document.getElementById('hotkey');
-    hotkeyElem.textContent = hotkeyText;
+    if (hotkeyElem) {
+      hotkeyElem.textContent = hotkeyText;
+    }
   }
 
-  // Sets toggleInGameWindow as the behavior for the Ctrl+F hotkey
+  // Sets toggleInGameWindow as the behavior for the hotkey
   private async setToggleHotkeyBehavior() {
     const toggleInGameWindow = async (
       hotkeyResult: overwolf.settings.hotkeys.OnPressedEvent
@@ -126,12 +143,181 @@ class InGame extends AppWindow {
     if (shouldAutoScroll) {
       log.scrollTop = log.scrollHeight;
     }
+
+    // Additionally, append to the debug log container
+    const debugLog = document.getElementById('debug-log');
+    if (debugLog) {
+      const debugLine = document.createElement('pre');
+      debugLine.textContent = JSON.stringify(data);
+      if (highlight) {
+        debugLine.className = 'highlight';
+      }
+      debugLog.appendChild(debugLine);
+    }
   }
 
   private async getCurrentGameClassId(): Promise<number | null> {
     const info = await OWGames.getRunningGameInfo();
 
     return (info && info.isRunning && info.classId) ? info.classId : null;
+  }
+
+  private setDebugHotkeyBehavior() {
+    OWHotkeys.onHotkeyDown(kHotkeys.debug, async (hotkeyResult) => {
+      this.logLine(this._eventsLog, { message: `############# Debug hotkey pressed: ${hotkeyResult.name}` }, false);
+      console.log(`Debug hotkey pressed: ${hotkeyResult.name}`);
+      const debugOverlay = document.getElementById('debug-overlay');
+      if (debugOverlay) {
+        // Toggle visibility
+        debugOverlay.style.display = (debugOverlay.style.display === 'none' || debugOverlay.style.display === '') ? 'block' : 'none';
+      }
+    });
+  }
+
+  private initializeDebugOverlay() {
+    const closeButton = document.getElementById('close-debug-overlay');
+    if (closeButton) {
+      closeButton.addEventListener('click', () => {
+        const debugOverlay = document.getElementById('debug-overlay');
+        if (debugOverlay) {
+          debugOverlay.style.display = 'none';
+        }
+      });
+    }
+  }
+
+
+
+
+  // Initialize the transcription overlay
+  private initializeTranscriptionOverlay() {
+    const overlay = document.getElementById('transcription-overlay');
+    const acceptButton = document.getElementById('accept-button');
+    const cancelButton = document.getElementById('cancel-button');
+    const textElement = document.getElementById('transcribed-text');
+
+    if (acceptButton && cancelButton && textElement && overlay) {
+      acceptButton.addEventListener('click', () => {
+        const text = textElement.textContent;
+        this.sendTextToChat(text);
+        this.hideOverlay();
+      });
+
+      cancelButton.addEventListener('click', () => {
+        this.hideOverlay();
+      });
+    } else {
+      console.error('Transcription overlay elements not found');
+    }
+  }
+
+  // Method to display the transcribed text
+  public displayTranscribedText(text: string) {
+    const overlay = document.getElementById('transcription-overlay');
+    const textElement = document.getElementById('transcribed-text');
+    if (overlay && textElement) {
+      textElement.textContent = text;
+      overlay.style.display = 'block';
+    } else {
+      console.error('Overlay or text element not found');
+    }
+  }
+
+  private hideOverlay() {
+    const overlay = document.getElementById('transcription-overlay');
+    if (overlay) {
+      overlay.style.display = 'none';
+    }
+  }
+
+  // Send text to the in-game chat
+  private sendTextToChat(text: string) {
+    // Ensure the text is not empty
+    if (text && text.trim() !== '') {
+      try {
+        // Place the text onto the clipboard
+        overwolf.utils.placeOnClipboard(text);
+  
+        // Proceed with sending the text
+        overwolf.utils.sendKeyStroke('Enter');
+  
+        setTimeout(() => {
+          overwolf.utils.sendKeyStroke('Ctrl+V');
+  
+          setTimeout(() => {
+            overwolf.utils.sendKeyStroke('Enter');
+          }, 100);
+        }, 100);
+      } catch (error) {
+        console.error('Error placing text on clipboard:', error);
+      }
+    } else {
+      console.warn('Attempted to send empty text to chat');
+    }
+  }
+
+  // Initialize recording functionality
+  private initializeRecording() {
+    console.log('%c initializeRecording called', 'background: yellow; color: black; font-weight: bold;');
+
+    OWHotkeys.onHotkeyDown(kHotkeys.record, (hotkeyResult) => {
+      console.log('Start Recording hotkey pressed:', hotkeyResult);
+      this.logLine(this._eventsLog, { message: `############# Start Recording hotkey pressed: ${hotkeyResult}` }, false);
+
+      this.startRecording();
+    });
+  }
+
+  // Function to start audio recording
+  private async startRecording() {
+    console.log('startRecording called');
+    this.logLine(this._eventsLog, { message: 'Recording is starting...' }, false);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      this.mediaRecorder = new MediaRecorder(stream);
+
+      this.mediaRecorder.ondataavailable = async (event) => {
+        const audioBlob = event.data;
+        // Send the audio blob to the Python backend
+        await this.sendAudioToBackend(audioBlob);
+      };
+
+      this.mediaRecorder.start();
+
+      // Stop recording after a certain duration or when the key is released
+      setTimeout(() => {
+        if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+          this.mediaRecorder.stop();
+          this.logLine(this._eventsLog, { message: 'Recording stopped' }, false);
+        }
+      }, 5000); // Record for 5 seconds
+    } catch (error) {
+      console.error('Error starting audio recording:', error);
+      this.logLine(this._eventsLog, { message: `Error starting audio recording: ${error}` }, true);
+    }
+  }
+
+  private async sendAudioToBackend(audioBlob: Blob) {
+    console.log('sendAudioToBackend called');
+    try {
+      const formData = new FormData();
+      formData.append('audio', audioBlob, 'audio.webm');
+
+      const response = await fetch('http://localhost:5000/transcribe', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Call the method to display the transcribed text
+        this.displayTranscribedText(data.transcription);
+      } else {
+        console.error('Error from backend:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Error sending audio to backend:', error);
+    }
   }
 }
 
