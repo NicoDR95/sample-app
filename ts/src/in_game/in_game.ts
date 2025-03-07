@@ -235,6 +235,8 @@ class InGame extends AppWindow {
     // Ensure the text is not empty
     if (text && text.trim() !== '') {
       try {
+        console.log('Sending text to chat:', text);
+        
         // Place the text onto the clipboard
         overwolf.utils.placeOnClipboard(text);
   
