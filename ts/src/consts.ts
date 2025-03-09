@@ -245,5 +245,7 @@ export const kWindowNames = {
 export const kHotkeys = {
   toggle: 'sample_app_ts_showhide',
   record: 'start_recording',
-  debug: 'debug_recording'
+  debug: 'debug_recording',
+  accept: 'accept_transcription',
+  discard: 'discard_transcription',
 };

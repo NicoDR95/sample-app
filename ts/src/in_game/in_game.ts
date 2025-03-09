@@ -21,9 +21,13 @@ class InGame extends AppWindow {
   private _infoLog: HTMLElement;
   private mediaRecorder: MediaRecorder;
 
+  // Keep the last transcription text in a variable so we don't rely on overlay focus:
+  private _lastTranscribedText: string;
+
   private constructor() {
     console.log('###### InGame constructor called ####');
     super(kWindowNames.inGame);
+    this._lastTranscribedText = '';
 
     this._eventsLog = document.getElementById('eventsLog');
     this._infoLog = document.getElementById('infoLog');
@@ -33,16 +37,13 @@ class InGame extends AppWindow {
 
     this.setDebugHotkeyBehavior();
     this.initializeDebugOverlay();
-    
-    // Add event listeners after the DOM is loaded
-    // document.addEventListener('DOMContentLoaded', () => {
-    //   this.initializeTranscriptionOverlay();
-    //   this.initializeRecording();
-    // });
 
-    // Directly call the initialization methods
     this.initializeTranscriptionOverlay();
     this.initializeRecording();
+
+    // ***** NEW: Accept/reject (discard) hotkey listeners *****
+    this.setAcceptHotkeyBehavior();
+    this.setDiscardHotkeyBehavior();
   }
 
   public static instance() {
@@ -70,6 +71,34 @@ class InGame extends AppWindow {
       this._gameEventsListener.start();
     }
   }
+
+  // -------------------------------------------------------------------------
+  // Example new functions for accept & discard hotkeys:
+
+  private setAcceptHotkeyBehavior() {
+    OWHotkeys.onHotkeyDown(kHotkeys.accept, (hotkeyResult) => {
+      // Only accept if the overlay is currently shown
+      const overlay = document.getElementById('transcription-overlay');
+      if (overlay && overlay.style.display === 'block') {
+        console.log('Accept hotkey pressed:', hotkeyResult.name);
+        // Use the last transcribed text we stored
+        this.sendTextToChat(this._lastTranscribedText);
+        this.hideOverlay();
+      }
+    });
+  }
+
+  private setDiscardHotkeyBehavior() {
+    OWHotkeys.onHotkeyDown(kHotkeys.discard, (hotkeyResult) => {
+      // Only discard if the overlay is currently shown
+      const overlay = document.getElementById('transcription-overlay');
+      if (overlay && overlay.style.display === 'block') {
+        console.log('Discard hotkey pressed:', hotkeyResult.name);
+        this.hideOverlay();
+      }
+    });
+  }
+  // -------------------------------------------------------------------------
 
   private onInfoUpdates(info) {
     this.logLine(this._infoLog, info, false);
@@ -216,6 +245,8 @@ class InGame extends AppWindow {
     const overlay = document.getElementById('transcription-overlay');
     const textElement = document.getElementById('transcribed-text');
     if (overlay && textElement) {
+      // Also store the text in this._lastTranscribedText so that hotkey-based acceptance works
+      this._lastTranscribedText = text;
       textElement.textContent = text;
       overlay.style.display = 'block';
     } else {
@@ -228,35 +259,67 @@ class InGame extends AppWindow {
     if (overlay) {
       overlay.style.display = 'none';
     }
+    // Optionally clear out the lastTranscribedText
+    this._lastTranscribedText = '';
   }
 
+
   // Send text to the in-game chat
+  // NOTE: This works only with a side app "lol_clipboard" running.
+  //       Otherwise LoL blocks the clipboard access. It has a separate clipboard system.
   private sendTextToChat(text: string) {
-    // Ensure the text is not empty
-    if (text && text.trim() !== '') {
-      try {
-        console.log('Sending text to chat:', text);
-        
-        // Place the text onto the clipboard
-        overwolf.utils.placeOnClipboard(text);
-  
-        // Proceed with sending the text
-        overwolf.utils.sendKeyStroke('Enter');
-  
-        setTimeout(() => {
-          overwolf.utils.sendKeyStroke('Ctrl+V');
-  
-          setTimeout(() => {
-            overwolf.utils.sendKeyStroke('Enter');
-          }, 100);
-        }, 100);
-      } catch (error) {
-        console.error('Error placing text on clipboard:', error);
-      }
-    } else {
+    if (!text || text.trim() === '') {
       console.warn('Attempted to send empty text to chat');
+      return;
+    }
+
+    try {
+    
+      console.log('Sending text to chat:', text);
+      // Copy text to clipboard:
+      overwolf.utils.placeOnClipboard(text);
+    
+      // Give Overwolf a moment to actually set the clipboard:
+      setTimeout(() => {
+        overwolf.utils.getFromClipboard((clipboardString) => {
+          // clipboardString will be `null` or the actual text
+          if (!clipboardString) {
+            console.error('Clipboard is empty or not a string');
+            return;
+          }
+        
+          console.log('Clipboard has:', clipboardString);
+        
+          if (clipboardString !== text) {
+            console.error(
+              `Clipboard text doesn't match the text we placed. Got: '${clipboardString}', expected: '${text}'`
+            );
+            return;
+          }
+    
+          // If we get here, the clipboard is correct, so hide overlay (if any) so the game can regain focus:
+          this.hideOverlay();
+    
+          // Then, let the game have time to be focused again:
+          setTimeout(() => {
+            // Now do your keystrokes
+            overwolf.utils.sendKeyStroke('Enter');
+    
+            setTimeout(() => {
+              overwolf.utils.sendKeyStroke('Ctrl+V');
+    
+              setTimeout(() => {
+                overwolf.utils.sendKeyStroke('Enter');
+              }, 80);
+            }, 80);
+          }, 80);
+        });
+      }, 80);
+    } catch (error) {
+      console.error('Error sending text to chat:', error);
     }
   }
+  
 
   // Initialize recording functionality
   private initializeRecording() {
@@ -280,13 +343,13 @@ class InGame extends AppWindow {
 
       this.mediaRecorder.ondataavailable = async (event) => {
         const audioBlob = event.data;
-        // Send the audio blob to the Python backend
         await this.sendAudioToBackend(audioBlob);
       };
 
       this.mediaRecorder.start();
 
-      // Stop recording after a certain duration or when the key is released
+      // Stop recording after 5 seconds (adjust if needed):
+      // TODO: Does this work only 5s or precise keystroke duration?
       setTimeout(() => {
         if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
           this.mediaRecorder.stop();

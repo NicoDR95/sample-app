@@ -38,6 +38,16 @@
         "title": "Debug Recording",
         "action": "debug_recording",
         "default": "Ctrl+D"
+      },
+      "accept_transcription": {
+        "title": "Accept Transcription",
+        "action-type": "custom",
+        "default": "Ctrl+Y"
+      },
+      "discard_transcription": {
+        "title": "Discard Transcription",
+        "action-type": "custom",
+        "default": "Ctrl+N"
       }
     },
     "protocol_override_domains": {
