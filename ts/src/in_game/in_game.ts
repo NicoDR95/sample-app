@@ -41,9 +41,10 @@ class InGame extends AppWindow {
     this.initializeTranscriptionOverlay();
     this.initializeRecording();
 
-    // ***** NEW: Accept/reject (discard) hotkey listeners *****
     this.setAcceptHotkeyBehavior();
     this.setDiscardHotkeyBehavior();
+
+    this.initializePushToTalk();
   }
 
   public static instance() {
@@ -73,7 +74,7 @@ class InGame extends AppWindow {
   }
 
   // -------------------------------------------------------------------------
-  // Example new functions for accept & discard hotkeys:
+  // Functions for accept & discard hotkeys:
 
   private setAcceptHotkeyBehavior() {
     OWHotkeys.onHotkeyDown(kHotkeys.accept, (hotkeyResult) => {
@@ -191,6 +192,11 @@ class InGame extends AppWindow {
     return (info && info.isRunning && info.classId) ? info.classId : null;
   }
 
+
+  // -------------------------------------------------------------------------
+  // Functions for debug hotkey:
+  // -------------------------------------------------------------------------
+
   private setDebugHotkeyBehavior() {
     OWHotkeys.onHotkeyDown(kHotkeys.debug, async (hotkeyResult) => {
       this.logLine(this._eventsLog, { message: `############# Debug hotkey pressed: ${hotkeyResult.name}` }, false);
@@ -216,7 +222,9 @@ class InGame extends AppWindow {
   }
 
 
-
+  // -------------------------------------------------------------------------
+  // Functions for audio transcription overlay:
+  // -------------------------------------------------------------------------
 
   // Initialize the transcription overlay
   private initializeTranscriptionOverlay() {
@@ -263,6 +271,9 @@ class InGame extends AppWindow {
     this._lastTranscribedText = '';
   }
 
+  // -------------------------------------------------------------------------
+  // Functions for writing transcription to chat:
+  // -------------------------------------------------------------------------
 
   // Send text to the in-game chat
   // NOTE: This works only with a side app "lol_clipboard" running.
@@ -310,15 +321,19 @@ class InGame extends AppWindow {
     
               setTimeout(() => {
                 overwolf.utils.sendKeyStroke('Enter');
-              }, 80);
-            }, 80);
-          }, 80);
+              }, 200);
+            }, 200);
+          }, 200);
         });
-      }, 80);
+      }, 200);
     } catch (error) {
       console.error('Error sending text to chat:', error);
     }
   }
+
+  // -------------------------------------------------------------------------
+  // Functions for audio recording with timeout mode:
+  // -------------------------------------------------------------------------
   
 
   // Initialize recording functionality
@@ -361,6 +376,61 @@ class InGame extends AppWindow {
       this.logLine(this._eventsLog, { message: `Error starting audio recording: ${error}` }, true);
     }
   }
+
+  // -------------------------------------------------------------------------
+  // Functions for audio recording with push to talk mode:
+  // -------------------------------------------------------------------------
+  private initializePushToTalk() {
+    overwolf.settings.hotkeys.onHold.addListener((event: overwolf.settings.hotkeys.OnHoldEvent) => {
+      console.log('pushToTalk event:', event);
+      if (event.name === "push_to_talk") {
+        if (event.state === 'down') {
+          // Key is pressed down
+          this.startPushToTalkRecording();
+        } else if (event.state === 'up') {
+          // Key was released
+          this.stopPushToTalkRecording();
+        }
+      }
+    });
+  }
+
+  
+  
+  private async startPushToTalkRecording() {
+    this.logLine(this._eventsLog, { message: 'PTT Recording starting...' }, false);
+  
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      this.mediaRecorder = new MediaRecorder(stream);
+  
+      // Each time data is available (on stop), send it to the backend:
+      this.mediaRecorder.ondataavailable = async (event) => {
+        const audioBlob = event.data;
+        await this.sendAudioToBackend(audioBlob);
+      };
+  
+      this.mediaRecorder.start();
+      console.log('PTT recording started.');
+      this.logLine(this._eventsLog, { message: 'PTT Recording started.' }, false);
+  
+    } catch (error) {
+      console.error('Error starting PTT recording:', error);
+      this.logLine(this._eventsLog, { message: `Error starting PTT recording: ${error}` }, true);
+    }
+  }
+  
+  private stopPushToTalkRecording() {
+    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+      this.mediaRecorder.stop();
+      this.logLine(this._eventsLog, { message: 'PTT Recording stopped' }, false);
+    }
+  }
+  
+
+  // -------------------------------------------------------------------------
+  // Functions for accessing the AI python backend:
+  // -------------------------------------------------------------------------
 
   private async sendAudioToBackend(audioBlob: Blob) {
     console.log('sendAudioToBackend called');

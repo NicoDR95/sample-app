@@ -248,4 +248,5 @@ export const kHotkeys = {
   debug: 'debug_recording',
   accept: 'accept_transcription',
   discard: 'discard_transcription',
+  push_to_talk: 'push_to_talk'
 };

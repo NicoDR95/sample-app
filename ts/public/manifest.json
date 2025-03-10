@@ -34,6 +34,12 @@
         "action": "start_recording",
         "default": "Ctrl+P"
       },
+      "push_to_talk": {
+        "title": "Push to Talk",
+        "action-type": "custom",
+        "hold": true,
+        "default": "Ctrl+B"
+      },
       "debug_recording": {
         "title": "Debug Recording",
         "action": "debug_recording",
