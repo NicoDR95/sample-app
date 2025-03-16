@@ -153,16 +153,6 @@ class BackgroundController {
       console.log('[Background] Record hotkey pressed:', hotkeyResult.name);
       this.startTimedRecording();
     });
-
-    // Debug hotkey, etc.:
-    OWHotkeys.onHotkeyDown(kHotkeys.debug, (hotkeyResult) => {
-      console.log('[Background] Debug hotkey pressed:', hotkeyResult.name);
-      // Possibly send a message to in_game to show the debug overlay
-      overwolf.windows.sendMessage(kWindowNames.inGame, 'SHOW_DEBUG', {}, (result) => {
-        console.log('Message sent:', result);
-      }
-      );
-    });
   }
 
   // Push-to-talk (onHold):

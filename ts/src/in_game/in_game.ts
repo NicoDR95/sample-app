@@ -46,13 +46,6 @@ class InGame extends AppWindow {
           this.hideOverlay();
           this.hideCurrentWindow();
           break;
-        case 'SHOW_DEBUG':
-          // Show debug overlay (or toggle it)
-          const debugOverlay = document.getElementById('debug-overlay');
-          if (debugOverlay) {
-            debugOverlay.style.display = 'block';
-          }
-          break;
       }
     });
   }
@@ -157,16 +150,6 @@ class InGame extends AppWindow {
       log.scrollTop = log.scrollHeight;
     }
 
-    // Additionally, append to the debug log container
-    const debugLog = document.getElementById('debug-log');
-    if (debugLog) {
-      const debugLine = document.createElement('pre');
-      debugLine.textContent = JSON.stringify(data);
-      if (highlight) {
-        debugLine.className = 'highlight';
-      }
-      debugLog.appendChild(debugLine);
-    }
   }
 
   private async getCurrentGameClassId(): Promise<number | null> {
@@ -176,33 +159,6 @@ class InGame extends AppWindow {
   }
 
 
-  // -------------------------------------------------------------------------
-  // Functions for debug hotkey:
-  // -------------------------------------------------------------------------
-
-  private setDebugHotkeyBehavior() {
-    OWHotkeys.onHotkeyDown(kHotkeys.debug, async (hotkeyResult) => {
-      this.logLine(this._eventsLog, { message: `############# Debug hotkey pressed: ${hotkeyResult.name}` }, false);
-      console.log(`Debug hotkey pressed: ${hotkeyResult.name}`);
-      const debugOverlay = document.getElementById('debug-overlay');
-      if (debugOverlay) {
-        // Toggle visibility
-        debugOverlay.style.display = (debugOverlay.style.display === 'none' || debugOverlay.style.display === '') ? 'block' : 'none';
-      }
-    });
-  }
-  
-  private initializeDebugOverlay() {
-    const closeButton = document.getElementById('close-debug-overlay');
-    if (closeButton) {
-      closeButton.addEventListener('click', () => {
-        const debugOverlay = document.getElementById('debug-overlay');
-        if (debugOverlay) {
-          debugOverlay.style.display = 'none';
-        }
-      });
-    }
-  }
 
   // -------------------------------------------------------------------------
   // Overlays

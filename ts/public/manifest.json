@@ -40,11 +40,6 @@
         "hold": true,
         "default": "Ctrl+B"
       },
-      "debug_recording": {
-        "title": "Debug Recording",
-        "action": "debug_recording",
-        "default": "Ctrl+D"
-      },
       "accept_transcription": {
         "title": "Accept Transcription",
         "action-type": "custom",
