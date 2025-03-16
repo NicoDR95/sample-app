@@ -31,9 +31,6 @@ class InGame extends AppWindow {
     this.setToggleHotkeyBehavior();
     this.setToggleHotkeyText();
 
-    this.setDebugHotkeyBehavior();
-    this.initializeDebugOverlay();
-    
     this.initializeTranscriptionOverlay();
 
     // Listen for messages from background – e.g. “TRANSCRIPTION_RESULT”
