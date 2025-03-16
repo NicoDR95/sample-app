@@ -238,6 +238,7 @@ export const kGamesFeatures = new Map<number, string[]>([
 export const kGameClassIds = Array.from(kGamesFeatures.keys());
 
 export const kWindowNames = {
+  background: 'background',
   inGame: 'in_game',
   desktop: 'desktop'
 };

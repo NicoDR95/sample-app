@@ -34,6 +34,15 @@ class BackgroundController {
     overwolf.extensions.onAppLaunchTriggered.addListener(
       e => this.onAppLaunchTriggered(e)
     );
+
+    // ********** NEW: Listen for messages ***********
+    overwolf.windows.onMessageReceived.addListener((message) => {
+      if (message.id === 'SEND_TEXT') {
+        const textToSend = message.content && message.content.text || '';
+        console.log('[Background] Received SEND_TEXT message:', textToSend);
+        this.injectTextIntoLoL(textToSend);
+      }
+    });
   };
 
   // Implementing the Singleton design pattern
@@ -57,7 +66,44 @@ class BackgroundController {
     this._windows[currWindowName].restore();
   }
 
-  private async onAppLaunchTriggered(e: AppLaunchTriggeredEvent) {
+  // -------------------------------------------------------------------------
+  // Function for writing transcription to chat:
+  // -------------------------------------------------------------------------
+  private injectTextIntoLoL(text: string) {
+    if (!text || text.trim() === '') {
+      console.warn('[Background] Attempted to send empty text.');
+      return;
+    }
+    console.log('[Background] injectTextIntoLoL():', text);
+
+    // Copy text to clipboard
+    overwolf.utils.placeOnClipboard(text);
+
+    // Wait briefly for the clipboard to update
+    setTimeout(() => {
+      overwolf.utils.getFromClipboard((clipboardString) => {
+        if (!clipboardString || clipboardString !== text) {
+          console.error(`[Background] Clipboard mismatch. Expected: '${text}', got: '${clipboardString}'`);
+          return;
+        }
+
+        // Now do the keystrokes as normal:
+        // (No window hide needed here, because the background window is never in the foreground anyway.)
+        setTimeout(() => {
+          overwolf.utils.sendKeyStroke('Enter');
+          setTimeout(() => {
+            overwolf.utils.sendKeyStroke('Ctrl+V');
+            setTimeout(() => {
+              overwolf.utils.sendKeyStroke('Enter');
+            }, 150);
+          }, 150);
+        }, 50);
+      });
+    }, 200);
+  }
+  // ************************************************************
+
+private async onAppLaunchTriggered(e: AppLaunchTriggeredEvent) {
     console.log('onAppLaunchTriggered():', e);
 
     if (!e || e.origin.includes('gamelaunchevent')) {

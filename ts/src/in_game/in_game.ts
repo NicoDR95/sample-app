@@ -82,9 +82,20 @@ class InGame extends AppWindow {
       const overlay = document.getElementById('transcription-overlay');
       if (overlay && overlay.style.display === 'block') {
         console.log('Accept hotkey pressed:', hotkeyResult.name);
-        // Use the last transcribed text we stored
-        this.sendTextToChat(this._lastTranscribedText);
+        
         this.hideOverlay();
+        this.hideCurrentWindow();
+
+        // Use the last transcribed text we stored
+        console.log('Sending text to background ###:', this._lastTranscribedText);
+        overwolf.windows.sendMessage(
+          kWindowNames.background,     // or whichever you designated as your background window name
+          'SEND_TEXT',
+          {text: this._lastTranscribedText},
+          (messageResult) => {
+            console.log('Message callback:', messageResult);
+          }
+        );
       }
     });
   }
@@ -236,8 +247,18 @@ class InGame extends AppWindow {
     if (acceptButton && cancelButton && textElement && overlay) {
       acceptButton.addEventListener('click', () => {
         const text = textElement.textContent;
-        this.sendTextToChat(text);
+        console.log('Accepting transcribed text:', text);
         this.hideOverlay();
+        this.hideCurrentWindow();
+        // this.sendTextToChat(text);
+        overwolf.windows.sendMessage(
+          kWindowNames.background,     // or whichever you designated as your background window name
+          'SEND_TEXT',
+          { text },
+          (messageResult) => {
+            console.log('Message callback:', messageResult);
+          }
+        );
       });
 
       cancelButton.addEventListener('click', () => {
@@ -255,6 +276,7 @@ class InGame extends AppWindow {
     if (overlay && textElement) {
       // Also store the text in this._lastTranscribedText so that hotkey-based acceptance works
       this._lastTranscribedText = text;
+      console.log('Displaying transcribed text:', this._lastTranscribedText);
       textElement.textContent = text;
       overlay.style.display = 'block';
     } else {
@@ -267,69 +289,18 @@ class InGame extends AppWindow {
     if (overlay) {
       overlay.style.display = 'none';
     }
-    // Optionally clear out the lastTranscribedText
-    this._lastTranscribedText = '';
   }
 
-  // -------------------------------------------------------------------------
-  // Functions for writing transcription to chat:
-  // -------------------------------------------------------------------------
-
-  // Send text to the in-game chat
-  // NOTE: This works only with a side app "lol_clipboard" running.
-  //       Otherwise LoL blocks the clipboard access. It has a separate clipboard system.
-  private sendTextToChat(text: string) {
-    if (!text || text.trim() === '') {
-      console.warn('Attempted to send empty text to chat');
-      return;
-    }
-
-    try {
-    
-      console.log('Sending text to chat:', text);
-      // Copy text to clipboard:
-      overwolf.utils.placeOnClipboard(text);
-    
-      // Give Overwolf a moment to actually set the clipboard:
-      setTimeout(() => {
-        overwolf.utils.getFromClipboard((clipboardString) => {
-          // clipboardString will be `null` or the actual text
-          if (!clipboardString) {
-            console.error('Clipboard is empty or not a string');
-            return;
-          }
-        
-          console.log('Clipboard has:', clipboardString);
-        
-          if (clipboardString !== text) {
-            console.error(
-              `Clipboard text doesn't match the text we placed. Got: '${clipboardString}', expected: '${text}'`
-            );
-            return;
-          }
-    
-          // If we get here, the clipboard is correct, so hide overlay (if any) so the game can regain focus:
-          this.hideOverlay();
-    
-          // Then, let the game have time to be focused again:
-          setTimeout(() => {
-            // Now do your keystrokes
-            overwolf.utils.sendKeyStroke('Enter');
-    
-            setTimeout(() => {
-              overwolf.utils.sendKeyStroke('Ctrl+V');
-    
-              setTimeout(() => {
-                overwolf.utils.sendKeyStroke('Enter');
-              }, 200);
-            }, 200);
-          }, 200);
-        });
-      }, 200);
-    } catch (error) {
-      console.error('Error sending text to chat:', error);
-    }
+  // Function to hide the window that currently has focus
+  private hideCurrentWindow() {
+    overwolf.windows.getCurrentWindow(result => {
+      if (result && result.window) {
+        overwolf.windows.hide(result.window.id);
+      }
+    });
   }
+
+
 
   // -------------------------------------------------------------------------
   // Functions for audio recording with timeout mode:
