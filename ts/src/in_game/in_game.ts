@@ -36,6 +36,9 @@ class InGame extends AppWindow {
         case 'CLOSE_OVERLAY':
           this.hideCurrentWindow();
           break;
+        case 'MARK_AS_OLD':
+          this.markTranscriptionAsOld();
+          break;
       }
     });
   }
@@ -112,6 +115,7 @@ class InGame extends AppWindow {
   private initializeTranscriptionOverlay() {
     const acceptBtn   = document.getElementById('accept-button');
     const cancelBtn   = document.getElementById('cancel-button');
+    const transcribedText = document.getElementById('transcribed-text') as HTMLDivElement;
 
     // Hook up buttons to send messages to background
     if (acceptBtn) {
@@ -120,6 +124,9 @@ class InGame extends AppWindow {
         overwolf.windows.sendMessage(kWindowNames.background, 'ACCEPT_CLICKED', {}, (result) => {
           console.log('Message sent:', result);
         });
+        if (transcribedText) {
+          transcribedText.classList.add('old-transcription'); // Mark as old
+        }
       });
     }
 
@@ -128,6 +135,9 @@ class InGame extends AppWindow {
         overwolf.windows.sendMessage(kWindowNames.background, 'DISCARD_CLICKED', {}, (result) => {
           console.log('Message sent:', result);
         });
+        if (transcribedText) {
+          transcribedText.classList.add('old-transcription'); // Mark as old
+        }
       });
     }
   }
@@ -153,8 +163,16 @@ class InGame extends AppWindow {
     if (transcribedText) {
       transcribedText.textContent = text;
       transcribedText.style.display = 'block'; // Ensure visibility
+      transcribedText.classList.remove('old-transcription'); // Remove old status
     } else {
       console.error('Element #transcribed-text not found');
+    }
+  }
+
+  private markTranscriptionAsOld() {
+    const transcribedText = document.getElementById('transcribed-text') as HTMLDivElement;
+    if (transcribedText) {
+      transcribedText.classList.add('old-transcription'); // Mark as old
     }
   }
 }

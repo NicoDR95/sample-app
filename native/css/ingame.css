@@ -153,6 +153,6 @@ button.logCopy:hover {
 }
 
 #transcribed-text.old-transcription {
-  color: #aaaaaa; /* Dim the text color */
+  color: #929136b6; /* Dim the text color */
   font-style: italic; /* Make it italic to indicate it's old */
 }

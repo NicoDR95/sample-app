@@ -172,12 +172,15 @@ class BackgroundController {
     // sending a "CLOSE_OVERLAY" message to in game window:
     overwolf.windows.sendMessage(kWindowNames.inGame, 'CLOSE_OVERLAY', {}, (result) => {
       console.log('Message sent:', result);
-    }
-    );
+    });
 
-    // Pasta the transcription into LoL chat:
+    // Send a message to mark the transcription as old
+    overwolf.windows.sendMessage(kWindowNames.inGame, 'MARK_AS_OLD', {}, (result) => {
+      console.log('Mark as old message sent:', result);
+    });
+
+    // Paste the transcription into LoL chat:
     this.injectTextIntoLoL(this._lastTranscribedText);
-
   }
 
   private onDiscardClicked() {
