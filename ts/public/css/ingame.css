@@ -138,3 +138,16 @@ button.logCopy:hover {
   background: #8d8d8d;
   color: #ffffff;
 }
+
+#transcribed-text {
+  display: block; /* Ensure visibility */
+  font-size: 25px; /* Set font size */
+  font-weight: bold; /* Make text bold */
+  color: #ffffff; /* Force text color to white */
+  background-color: #444444;
+  padding: 10px;
+  border-radius: 5px;
+  margin-bottom: 20px;
+  word-wrap: break-word;
+}
+

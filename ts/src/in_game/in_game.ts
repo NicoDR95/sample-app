@@ -17,16 +17,10 @@ import WindowState = overwolf.windows.WindowStateEx;
 class InGame extends AppWindow {
   private static _instance: InGame;
   private _gameEventsListener: OWGamesEvents;
-  private _eventsLog: HTMLElement;
-  private _infoLog: HTMLElement;
-
 
 
   private constructor() {
     super(kWindowNames.inGame);
-
-    this._eventsLog = document.getElementById('eventsLog');
-    this._infoLog = document.getElementById('infoLog');
 
     this.setToggleHotkeyBehavior();
     this.setToggleHotkeyText();
@@ -40,7 +34,6 @@ class InGame extends AppWindow {
           this.displayTranscribedText(message.content?.text || '');
           break;
         case 'CLOSE_OVERLAY':
-          this.hideOverlay();
           this.hideCurrentWindow();
           break;
       }
@@ -57,46 +50,22 @@ class InGame extends AppWindow {
 
   public async run() {
     const gameClassId = await this.getCurrentGameClassId();
-
     const gameFeatures = kGamesFeatures.get(gameClassId);
+    // Note keeping this for future reference and to show how to use the game events listener
+    // if (gameFeatures && gameFeatures.length) {
+    //   this._gameEventsListener = new OWGamesEvents(
+    //     {
+    //       onInfoUpdates: this.onInfoUpdates.bind(this),
+    //       onNewEvents: this.onNewEvents.bind(this)
+    //     },
+    //     gameFeatures
+    //   );
 
-    if (gameFeatures && gameFeatures.length) {
-      this._gameEventsListener = new OWGamesEvents(
-        {
-          onInfoUpdates: this.onInfoUpdates.bind(this),
-          onNewEvents: this.onNewEvents.bind(this)
-        },
-        gameFeatures
-      );
-
-      this._gameEventsListener.start();
-    }
+    //   this._gameEventsListener.start();
+    // }
   }
 
-  
-  private onInfoUpdates(info) {
-    this.logLine(this._infoLog, info, false);
-  }
 
-  // Special events will be highlighted in the event log
-  private onNewEvents(e) {
-    const shouldHighlight = e.events.some(event => {
-      switch (event.name) {
-        case 'kill':
-        case 'death':
-        case 'assist':
-        case 'level':
-        case 'matchStart':
-        case 'match_start':
-        case 'matchEnd':
-        case 'match_end':
-          return true;
-      }
-
-      return false
-    });
-    this.logLine(this._eventsLog, e, shouldHighlight);
-  }
 
   // Displays the toggle minimize/restore hotkey in the window header
   private async setToggleHotkeyText() {
@@ -128,26 +97,6 @@ class InGame extends AppWindow {
     OWHotkeys.onHotkeyDown(kHotkeys.toggle, toggleInGameWindow);
   }
 
-    // Appends a new line to the specified log
-  private logLine(log: HTMLElement, data, highlight) {
-    const line = document.createElement('pre');
-    line.textContent = JSON.stringify(data);
-
-    if (highlight) {
-      line.className = 'highlight';
-    }
-
-    // Check if scroll is near bottom
-    const shouldAutoScroll =
-      log.scrollTop + log.offsetHeight >= log.scrollHeight - 10;
-
-    log.appendChild(line);
-
-    if (shouldAutoScroll) {
-      log.scrollTop = log.scrollHeight;
-    }
-
-  }
 
   private async getCurrentGameClassId(): Promise<number | null> {
     const info = await OWGames.getRunningGameInfo();
@@ -161,10 +110,8 @@ class InGame extends AppWindow {
   // Overlays
   // -------------------------------------------------------------------------
   private initializeTranscriptionOverlay() {
-    const overlay     = document.getElementById('transcription-overlay');
     const acceptBtn   = document.getElementById('accept-button');
     const cancelBtn   = document.getElementById('cancel-button');
-    const textElement = document.getElementById('transcribed-text');
 
     // Hook up buttons to send messages to background
     if (acceptBtn) {
@@ -185,12 +132,7 @@ class InGame extends AppWindow {
     }
   }
 
-  private hideOverlay() {
-    const overlay = document.getElementById('transcription-overlay');
-    if (overlay) {
-      overlay.style.display = 'none';
-    }
-  }
+
 
   // Function to hide the window that currently has focus
   private hideCurrentWindow() {
@@ -201,15 +143,18 @@ class InGame extends AppWindow {
     });
   }
 
+
   public displayTranscribedText(text: string) {
-    const overlay     = document.getElementById('transcription-overlay');
-    const textElement = document.getElementById('transcribed-text');
+    console.log('Displaying transcribed text:', text); // Add logging
+    const transcribedText = document.getElementById('transcribed-text') as HTMLDivElement;
 
     this.currWindow.restore();
-    
-    if (overlay && textElement) {
-      textElement.textContent = text;
-      overlay.style.display = 'block';
+
+    if (transcribedText) {
+      transcribedText.textContent = text;
+      transcribedText.style.display = 'block'; // Ensure visibility
+    } else {
+      console.error('Element #transcribed-text not found');
     }
   }
 }
